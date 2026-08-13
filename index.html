@@ -49,11 +49,45 @@
         .bridge-item-title { font-weight: bold; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .bridge-item-sub { opacity: 0.7; font-size: 9.5px; }
         .chart-container { padding-top: 6px; border-top: 1px solid var(--border); height: 160px; display: flex; flex-direction: column; }
-        [data-theme="dark"] .leaflet-popup-content-wrapper, [data-theme="dark"] .leaflet-popup-tip { background: rgba(20, 20, 20, 0.9) !important; backdrop-filter: blur(8px); color: #fff !important; border: 1px solid var(--accent); box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); }
-        .popup-title { font-weight: 800; font-size: 13px; color: var(--accent); display: block; border-bottom: 2px solid var(--accent); margin-bottom: 6px; padding-bottom: 4px; text-transform: uppercase; }
-        .popup-table { width: 100%; font-size: 11px; border-collapse: collapse; color: inherit; }
-        .popup-table td { padding: 3px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.2); }
-        [data-theme="dark"] .popup-table td { color: #ccc; border-bottom-color: rgba(255, 255, 255, 0.05); }
+        
+        /* --- POPUP LEAFLET STYLING --- */
+        [data-theme="dark"] .leaflet-popup-content-wrapper,
+        [data-theme="dark"] .leaflet-popup-tip {
+            background: rgba(20, 20, 20, 0.95) !important;
+            backdrop-filter: blur(8px);
+            color: #fff !important;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            padding: 2px;
+        }
+        .popup-title {
+            font-weight: 800;
+            font-size: 12px;
+            color: var(--accent);
+            display: block;
+            border-bottom: 2px solid var(--accent);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            text-transform: uppercase;
+        }
+        .popup-table {
+            width: 100%;
+            font-size: 11px;
+            border-collapse: collapse;
+            color: inherit;
+        }
+        .popup-table td {
+            padding: 3px 4px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+        }
+        [data-theme="dark"] .popup-table td {
+            color: #ccc;
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+
         @media (max-width: 768px) { .main-container { flex-direction: column; } .sidebar { width: 100%; height: auto; max-height: 50vh; } #map-container { height: 50vh; } }
     </style>
 </head>
@@ -115,14 +149,11 @@
         function getKondisiRaw(props) { const nk = parseInt(getProp(props, ['JBT_25', 'JBT_26'])); if (isNaN(nk)) return 'Tidak Diketahui'; if (nk <= 1) return 'Sangat Baik'; if (nk === 2) return 'Baik'; if (nk === 3) return 'Sedang'; if (nk === 4) return 'Rusak'; return 'Rusak Berat'; }
         function getColor(kondisiRaw, theme) { return colorPalette[theme][kondisiRaw] || colorPalette[theme]['Tidak Diketahui']; }
         
-        // Fungsi download murni mengambil semua kunci (keys) asli dari properties GeoJSON
         function downloadDataCSV() {
             if (!currentFilteredFeatures.length) {
                 alert("Tidak ada data untuk diunduh.");
                 return;
             }
-
-            // Ambil seluruh kunci atribut unik yang ada di dalam properties data GeoJSON yang sedang aktif
             const allKeysSet = new Set();
             currentFilteredFeatures.forEach(f => {
                 if (f.properties) {
@@ -130,16 +161,11 @@
                 }
             });
             const keys = Array.from(allKeysSet);
-
-            // Buat baris header CSV berdasarkan nama asli atribut GeoJSON
             let csv = keys.join(",") + "\n";
-
-5            // Masukkan data baris demi baris sesuai atribut aslinya
             currentFilteredFeatures.forEach(f => {
                 const props = f.properties || {};
                 const row = keys.map(key => {
                     let val = props[key] !== null && props[key] !== undefined ? props[key] : "";
-                    // Ubah ke string dan bersihkan koma atau enter agar format CSV tidak berantakan
                     val = String(val).replace(/"/g, '""');
                     if (val.includes(',') || val.includes('\n') || val.includes('"')) {
                         val = `"${val}"`;
@@ -148,8 +174,6 @@
                 });
                 csv += row.join(",") + "\n";
             });
-
-            // Eksekusi unduhan file CSV asli
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
@@ -169,10 +193,56 @@
                     const nmRuas = getProp(p, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-';
                     const panjang = getBridgeLength(p);
                     const kondisi = getKondisiRaw(p);
-                    l.bindPopup(`<b>${nmJbt}</b><br>Ruas: ${nmRuas}<br>Panjang: ${panjang} m<br>Kondisi: ${kondisi}`);
+                    const color = getColor(kondisi, currentTheme);
+
+                    l.on('click', function (e) {
+                        L.DomEvent.stopPropagation(e);
+                        highlightFeature(l, color);
+                    });
+
+                    // Pop-up dikembalikan rapi menggunakan tabel terstruktur & elegan
+                    l.bindPopup(`
+                        <span class="popup-title">${nmJbt}</span>
+                        <table class="popup-table">
+                            <tr><td><b>Ruas</b></td><td style="text-align:right">${nmRuas}</td></tr>
+                            <tr><td><b>Panjang</b></td><td style="text-align:right">${panjang} m</td></tr>
+                            <tr><td><b>Kondisi</b></td><td style="text-align:right; color:${color}; font-weight:bold;">${kondisi}</td></tr>
+                            <tr><td><b>Provinsi</b></td><td style="text-align:right">${getProp(p, ['Provinsi']) || '-'}</td></tr>
+                        </table>
+                    `);
                 }
             });
         }
+
+        function highlightFeature(layerInstance, color) {
+            if (currentActiveLayer) {
+                currentActiveLayer.eachLayer(layer => {
+                    if (layer.setStyle) {
+                        layer.setStyle({ radius: 5, weight: 1, color: currentTheme === 'dark' ? '#000' : '#fff' });
+                    }
+                });
+            }
+            lastClickedLayer = layerInstance;
+            layerInstance.setStyle({
+                radius: 8,
+                color: currentTheme === 'dark' ? '#00ffff' : '#005e95',
+                weight: 2.5,
+                fillColor: color
+            });
+            layerInstance.bringToFront();
+        }
+
+        map.on('click', function () {
+            if (currentActiveLayer) {
+                currentActiveLayer.eachLayer(layer => {
+                    if (layer.setStyle) {
+                        layer.setStyle({ radius: 5, weight: 1, color: currentTheme === 'dark' ? '#000' : '#fff' });
+                    }
+                });
+                lastClickedLayer = null;
+            }
+        });
+
         function updateUI(featuresArray) {
             const p = colorPalette[currentTheme];
             document.getElementById('legend').innerHTML = Object.keys(p).filter(k => k !== 'Tidak Diketahui').map(k => `<div class="legend-item"><div class="circle-sample" style="background:${p[k]}"></div> ${k}</div>`).join('');
