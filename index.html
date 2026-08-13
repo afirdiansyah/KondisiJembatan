@@ -114,18 +114,52 @@
         function getBridgeLength(props) { const pjg = getProp(props, ['Pjg_Jbt_25', 'Pjg_Jbt_26', 'Pjg_26']); return parseFloat(pjg) || 0; }
         function getKondisiRaw(props) { const nk = parseInt(getProp(props, ['JBT_25', 'JBT_26'])); if (isNaN(nk)) return 'Tidak Diketahui'; if (nk <= 1) return 'Sangat Baik'; if (nk === 2) return 'Baik'; if (nk === 3) return 'Sedang'; if (nk === 4) return 'Rusak'; return 'Rusak Berat'; }
         function getColor(kondisiRaw, theme) { return colorPalette[theme][kondisiRaw] || colorPalette[theme]['Tidak Diketahui']; }
+        
+        // Fungsi download murni mengambil semua kunci (keys) asli dari properties GeoJSON
         function downloadDataCSV() {
-            if (!currentFilteredFeatures.length) { alert("Tidak ada data untuk diunduh."); return; }
-            let csv = "Nama Jembatan,Ruas,Panjang,Kondisi,Provinsi\n";
+            if (!currentFilteredFeatures.length) {
+                alert("Tidak ada data untuk diunduh.");
+                return;
+            }
+
+            // Ambil seluruh kunci atribut unik yang ada di dalam properties data GeoJSON yang sedang aktif
+            const allKeysSet = new Set();
             currentFilteredFeatures.forEach(f => {
-                const p = f.properties;
-                csv += `${(getProp(p, ['Nm_Jbt_25', 'NM_JBT_UPD']) || 'Jembatan Tanpa Nama').replace(/,/g, '')},${(getProp(p, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-').replace(/,/g, '')},${getBridgeLength(p)},${getKondisiRaw(p)},${(getProp(p, ['Provinsi']) || '-').replace(/,/g, '')}\n`;
+                if (f.properties) {
+                    Object.keys(f.properties).forEach(k => allKeysSet.add(k));
+                }
             });
+            const keys = Array.from(allKeysSet);
+
+            // Buat baris header CSV berdasarkan nama asli atribut GeoJSON
+            let csv = keys.join(",") + "\n";
+
+5            // Masukkan data baris demi baris sesuai atribut aslinya
+            currentFilteredFeatures.forEach(f => {
+                const props = f.properties || {};
+                const row = keys.map(key => {
+                    let val = props[key] !== null && props[key] !== undefined ? props[key] : "";
+                    // Ubah ke string dan bersihkan koma atau enter agar format CSV tidak berantakan
+                    val = String(val).replace(/"/g, '""');
+                    if (val.includes(',') || val.includes('\n') || val.includes('"')) {
+                        val = `"${val}"`;
+                    }
+                    return val;
+                });
+                csv += row.join(",") + "\n";
+            });
+
+            // Eksekusi unduhan file CSV asli
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
-            link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
-            link.download = `data_jembatan_${activeRegion || 'nasional'}.csv`;
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `atribut_geojson_${activeRegion || 'nasional'}.csv`);
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         }
+
         function createFeatureLayer(featuresArray) {
             return L.geoJSON({ type: "FeatureCollection", features: featuresArray }, {
                 pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, fillColor: getColor(getKondisiRaw(f.properties), currentTheme), color: currentTheme === 'dark' ? '#000' : '#fff', weight: 1, fillOpacity: 0.8 }),
