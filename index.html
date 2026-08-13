@@ -50,31 +50,24 @@
         .bridge-item-sub { opacity: 0.7; font-size: 9.5px; }
         .chart-container { padding-top: 6px; border-top: 1px solid var(--border); height: 160px; display: flex; flex-direction: column; }
         
-        /* --- CUSTOM CYBERPUNK POPUP LEAFLET --- */
-        .leaflet-popup-content-wrapper {
-            background: rgba(15, 15, 15, 0.95) !important;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            color: #ffffff !important;
-            border: 1.5px solid var(--accent);
-            border-radius: 12px;
-            box-shadow: 0 0 20px var(--shadow);
-            padding: 0 !important;
-        }
+        /* --- POPUP LEAFLET SESUAI PERMINTAAN --- */
+        .leaflet-popup-content-wrapper,
         .leaflet-popup-tip {
-            background: rgba(15, 15, 15, 0.95) !important;
-            border: 1.5px solid var(--accent);
-            box-shadow: 0 0 10px var(--shadow);
+            background: rgba(20, 20, 20, 0.9) !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff !important;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            border-radius: 10px;
         }
         .leaflet-popup-content {
-            margin: 14px 16px !important;
+            margin: 12px 14px !important;
             line-height: 1.4;
         }
         .leaflet-container a.leaflet-popup-close-button {
             color: #aaa !important;
-            padding: 8px 10px !important;
-            font-size: 14px;
-            font-weight: bold;
+            padding: 6px 8px !important;
         }
         .leaflet-container a.leaflet-popup-close-button:hover {
             color: var(--accent) !important;
@@ -85,32 +78,31 @@
             font-size: 13px;
             color: var(--accent);
             display: block;
-            border-bottom: 1.5px solid var(--accent);
-            margin-bottom: 8px;
-            padding-bottom: 5px;
+            border-bottom: 2px solid var(--accent);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding-right: 15px;
         }
         .popup-table {
             width: 100%;
             font-size: 11px;
             border-collapse: collapse;
-            color: #e0e0e0;
+            color: inherit;
         }
         .popup-table td {
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            vertical-align: top;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+        }
+        [data-theme="dark"] .popup-table td {
+            color: #ccc;
+            border-bottom-color: rgba(255, 255, 255, 0.05);
         }
         .popup-table td:first-child {
             font-weight: 600;
-            color: #bbb;
-            width: 35%;
+            width: 30%;
         }
         .popup-table td:last-child {
             text-align: right;
-            font-weight: 500;
         }
 
         @media (max-width: 768px) { .main-container { flex-direction: column; } .sidebar { width: 100%; height: auto; max-height: 50vh; } #map-container { height: 50vh; } }
@@ -226,7 +218,7 @@
                         highlightFeature(l, color);
                     });
 
-                    // Pop-up bergaya Cyber/Tech modern yang rapi sesuai permintaan
+                    // Pop-up disesuaikan dengan gaya Cyber/Tech yang rapi & elegan
                     l.bindPopup(`
                         <span class="popup-title">${nmJbt}</span>
                         <table class="popup-table">
