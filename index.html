@@ -50,42 +50,67 @@
         .bridge-item-sub { opacity: 0.7; font-size: 9.5px; }
         .chart-container { padding-top: 6px; border-top: 1px solid var(--border); height: 160px; display: flex; flex-direction: column; }
         
-        /* --- POPUP LEAFLET STYLING --- */
-        [data-theme="dark"] .leaflet-popup-content-wrapper,
-        [data-theme="dark"] .leaflet-popup-tip {
-            background: rgba(20, 20, 20, 0.95) !important;
-            backdrop-filter: blur(8px);
-            color: #fff !important;
-            border: 1px solid var(--accent);
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-        }
+        /* --- CUSTOM CYBERPUNK POPUP LEAFLET --- */
         .leaflet-popup-content-wrapper {
-            border-radius: 8px;
-            padding: 2px;
+            background: rgba(15, 15, 15, 0.95) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #ffffff !important;
+            border: 1.5px solid var(--accent);
+            border-radius: 12px;
+            box-shadow: 0 0 20px var(--shadow);
+            padding: 0 !important;
         }
+        .leaflet-popup-tip {
+            background: rgba(15, 15, 15, 0.95) !important;
+            border: 1.5px solid var(--accent);
+            box-shadow: 0 0 10px var(--shadow);
+        }
+        .leaflet-popup-content {
+            margin: 14px 16px !important;
+            line-height: 1.4;
+        }
+        .leaflet-container a.leaflet-popup-close-button {
+            color: #aaa !important;
+            padding: 8px 10px !important;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .leaflet-container a.leaflet-popup-close-button:hover {
+            color: var(--accent) !important;
+        }
+
         .popup-title {
             font-weight: 800;
-            font-size: 12px;
+            font-size: 13px;
             color: var(--accent);
             display: block;
-            border-bottom: 2px solid var(--accent);
-            margin-bottom: 6px;
-            padding-bottom: 4px;
+            border-bottom: 1.5px solid var(--accent);
+            margin-bottom: 8px;
+            padding-bottom: 5px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-right: 15px;
         }
         .popup-table {
             width: 100%;
             font-size: 11px;
             border-collapse: collapse;
-            color: inherit;
+            color: #e0e0e0;
         }
         .popup-table td {
-            padding: 3px 4px;
-            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            vertical-align: top;
         }
-        [data-theme="dark"] .popup-table td {
-            color: #ccc;
-            border-bottom-color: rgba(255, 255, 255, 0.08);
+        .popup-table td:first-child {
+            font-weight: 600;
+            color: #bbb;
+            width: 35%;
+        }
+        .popup-table td:last-child {
+            text-align: right;
+            font-weight: 500;
         }
 
         @media (max-width: 768px) { .main-container { flex-direction: column; } .sidebar { width: 100%; height: auto; max-height: 50vh; } #map-container { height: 50vh; } }
@@ -193,6 +218,7 @@
                     const nmRuas = getProp(p, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-';
                     const panjang = getBridgeLength(p);
                     const kondisi = getKondisiRaw(p);
+                    const balai = getProp(p, ['Balai', 'WILAYAH', 'Keterangan']) || '-';
                     const color = getColor(kondisi, currentTheme);
 
                     l.on('click', function (e) {
@@ -200,14 +226,14 @@
                         highlightFeature(l, color);
                     });
 
-                    // Pop-up dikembalikan rapi menggunakan tabel terstruktur & elegan
+                    // Pop-up bergaya Cyber/Tech modern yang rapi sesuai permintaan
                     l.bindPopup(`
                         <span class="popup-title">${nmJbt}</span>
                         <table class="popup-table">
-                            <tr><td><b>Ruas</b></td><td style="text-align:right">${nmRuas}</td></tr>
-                            <tr><td><b>Panjang</b></td><td style="text-align:right">${panjang} m</td></tr>
-                            <tr><td><b>Kondisi</b></td><td style="text-align:right; color:${color}; font-weight:bold;">${kondisi}</td></tr>
-                            <tr><td><b>Provinsi</b></td><td style="text-align:right">${getProp(p, ['Provinsi']) || '-'}</td></tr>
+                            <tr><td>Ruas</td><td>${nmRuas}</td></tr>
+                            <tr><td>Panjang</td><td>${panjang} m</td></tr>
+                            <tr><td>Kondisi</td><td style="color:${color}; font-weight:bold;">${kondisi}</td></tr>
+                            <tr><td>Balai</td><td>${balai}</td></tr>
                         </table>
                     `);
                 }
