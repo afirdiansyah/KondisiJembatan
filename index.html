@@ -6,7 +6,6 @@
     <title>Dashboard Kondisi Jembatan 2025</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* ... existing styles ... */
         :root { --bg: #f4f6f8; --header-bg: rgba(0, 94, 149, 0.9); --sidebar-bg: rgba(255, 255, 255, 0.85); --text-header: #ffffff; --text-sidebar: #212529; --accent: #005e95; --accent-2: #e67e22; --border: rgba(206, 212, 218, 0.8); --shadow: rgba(0, 0, 0, 0.1); --tab-inactive: rgba(233, 236, 239, 0.8); --blur: blur(12px); --stat-bg: rgba(0, 94, 149, 0.05); --stat-border: rgba(0, 94, 149, 0.2); --stat-alt-bg: rgba(230, 126, 34, 0.05); --stat-alt-border: rgba(230, 126, 34, 0.2); }
         [data-theme="dark"] { --bg: #050505; --header-bg: rgba(10, 10, 10, 0.9); --sidebar-bg: rgba(17, 17, 17, 0.75); --text-header: #00ffff; --text-sidebar: #e0e0e0; --accent: #00ffff; --accent-2: #ff00ff; --border: rgba(51, 51, 51, 0.6); --shadow: rgba(0, 255, 255, 0.15); --tab-inactive: rgba(34, 34, 34, 0.6); --stat-bg: rgba(0, 255, 255, 0.05); --stat-border: rgba(0, 255, 255, 0.2); --stat-alt-bg: rgba(255, 0, 255, 0.05); --stat-alt-border: rgba(255, 0, 255, 0.2); }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text-sidebar); transition: background 0.3s ease, color 0.3s ease; overflow: hidden; }
@@ -116,11 +115,11 @@
         function getKondisiRaw(props) { const nk = parseInt(getProp(props, ['JBT_25', 'JBT_26'])); if (isNaN(nk)) return 'Tidak Diketahui'; if (nk <= 1) return 'Sangat Baik'; if (nk === 2) return 'Baik'; if (nk === 3) return 'Sedang'; if (nk === 4) return 'Rusak'; return 'Rusak Berat'; }
         function getColor(kondisiRaw, theme) { return colorPalette[theme][kondisiRaw] || colorPalette[theme]['Tidak Diketahui']; }
         function downloadDataCSV() {
-            if (!currentFilteredFeatures.length) { alert("Tidak ada data."); return; }
+            if (!currentFilteredFeatures.length) { alert("Tidak ada data untuk diunduh."); return; }
             let csv = "Nama Jembatan,Ruas,Panjang,Kondisi,Provinsi\n";
             currentFilteredFeatures.forEach(f => {
                 const p = f.properties;
-                csv += `${(getProp(p, ['Nm_Jbt_25', 'NM_JBT_UPD']) || 'Jembatan Tanpa Nama').replace(/,/g, '')},${(getProp(p, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-').replace(/,/g, '')},${getBridgeLength(p)},${getKondisiRaw(p)},${(p.Provinsi || '-').replace(/,/g, '')}\n`;
+                csv += `${(getProp(p, ['Nm_Jbt_25', 'NM_JBT_UPD']) || 'Jembatan Tanpa Nama').replace(/,/g, '')},${(getProp(p, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-').replace(/,/g, '')},${getBridgeLength(p)},${getKondisiRaw(p)},${(getProp(p, ['Provinsi']) || '-').replace(/,/g, '')}\n`;
             });
             const link = document.createElement("a");
             link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
@@ -130,32 +129,70 @@
         function createFeatureLayer(featuresArray) {
             return L.geoJSON({ type: "FeatureCollection", features: featuresArray }, {
                 pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, fillColor: getColor(getKondisiRaw(f.properties), currentTheme), color: currentTheme === 'dark' ? '#000' : '#fff', weight: 1, fillOpacity: 0.8 }),
-                onEachFeature: (f, l) => l.bindPopup(`<b>${getProp(f.properties, ['Nm_Jbt_25', 'NM_JBT_UPD'])}</b><br>${getProp(f.properties, ['Nm_Ruas_25', 'NM_RUAS_UP'])}`)
+                onEachFeature: (f, l) => {
+                    const p = f.properties;
+                    const nmJbt = getProp(p, ['Nm_Jbt_25', 'NM_JBT_UPD']) || 'Jembatan Tanpa Nama';
+                    const nmRuas = getProp(p, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-';
+                    const panjang = getBridgeLength(p);
+                    const kondisi = getKondisiRaw(p);
+                    l.bindPopup(`<b>${nmJbt}</b><br>Ruas: ${nmRuas}<br>Panjang: ${panjang} m<br>Kondisi: ${kondisi}`);
+                }
             });
         }
         function updateUI(featuresArray) {
             const p = colorPalette[currentTheme];
             document.getElementById('legend').innerHTML = Object.keys(p).filter(k => k !== 'Tidak Diketahui').map(k => `<div class="legend-item"><div class="circle-sample" style="background:${p[k]}"></div> ${k}</div>`).join('');
             document.getElementById('total-unit').innerText = featuresArray.length;
-            document.getElementById('total-length').innerText = featuresArray.reduce((acc, f) => acc + getBridgeLength(f.properties), 0).toFixed(1) + " m";
+            document.getElementById('total-length').innerText = featuresArray.reduce((acc, f) => acc + getBridgeLength(f.properties), 0).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + " m";
             
             let mantap = 0, tidakMantap = 0;
-            featuresArray.forEach(f => {
-                const nk = parseInt(getProp(f.properties, ['JBT_25', 'JBT_26']));
+            let listHTML = '';
+            featuresArray.forEach((f, index) => {
+                const props = f.properties;
+                const nk = parseInt(getProp(props, ['JBT_25', 'JBT_26']));
                 if (!isNaN(nk)) nk <= 2 ? mantap++ : tidakMantap++;
+                const nmJbt = getProp(props, ['Nm_Jbt_25', 'NM_JBT_UPD']) || 'Jembatan Tanpa Nama';
+                const nmRuas = getProp(props, ['Nm_Ruas_25', 'NM_RUAS_UP']) || '-';
+                listHTML += `<div class="bridge-item" data-name="${nmJbt}" data-ruas="${nmRuas}" onclick="focusBridge(${index})"><span class="bridge-item-title">${nmJbt}</span><span class="bridge-item-sub">Ruas: ${nmRuas}</span></div>`;
             });
+            document.getElementById('bridge-list').innerHTML = listHTML || '<div style="font-size: 10px; opacity: 0.5; text-align: center; padding: 6px;">Tidak ada data</div>';
             renderChart(mantap, tidakMantap);
+        }
+        function focusBridge(index) {
+            if (!currentActiveLayer) return;
+            let i = 0;
+            currentActiveLayer.eachLayer(layer => {
+                if (i === index) {
+                    map.flyTo(layer.getLatLng(), 15, { duration: 1.5 });
+                    layer.openPopup();
+                }
+                i++;
+            });
         }
         function renderChart(mantap, tidakMantap) {
             const ctx = document.getElementById('conditionChart').getContext('2d');
             if (myChart) myChart.destroy();
-            myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['Mantap', 'Tidak Mantap'], datasets: [{ data: [mantap, tidakMantap], backgroundColor: [currentTheme === 'dark' ? '#39ff14' : '#2e7d32', currentTheme === 'dark' ? '#ff073a' : '#c62828'] }] } });
+            myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['Mantap', 'Tidak Mantap'], datasets: [{ data: [mantap, tidakMantap], backgroundColor: [currentTheme === 'dark' ? '#39ff14' : '#2e7d32', currentTheme === 'dark' ? '#ff073a' : '#c62828'] }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right', labels: { color: currentTheme === 'dark' ? '#e0e0e0' : '#212529', font: { size: 10 }, boxWidth: 10 } } } } });
         }
         function switchRegion(regionName) {
             activeRegion = regionName;
-            currentFilteredFeatures = regionName === 'nasional' ? masterGeoJsonData.features : masterGeoJsonData.features.filter(f => f.properties.Provinsi === regionName);
+            document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.getElementById(`tab-${regionName}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            if (regionName === 'nasional') {
+                currentFilteredFeatures = masterGeoJsonData.features.filter(f => getProp(f.properties, ['Provinsi']));
+            } else {
+                currentFilteredFeatures = masterGeoJsonData.features.filter(f => {
+                    const prov = getProp(f.properties, ['Provinsi']);
+                    return prov && prov.trim().toLowerCase() === regionName.trim().toLowerCase();
+                });
+            }
             if (currentActiveLayer) map.removeLayer(currentActiveLayer);
             currentActiveLayer = createFeatureLayer(currentFilteredFeatures).addTo(map);
+            if (currentActiveLayer.getBounds().isValid()) {
+                map.flyToBounds(currentActiveLayer.getBounds(), { padding: [50, 50], duration: 1.5 });
+            }
             updateUI(currentFilteredFeatures);
         }
         function toggleTheme() {
@@ -165,25 +202,55 @@
             (currentTheme === 'dark' ? darkTiles : lightTiles).addTo(map);
             if (activeRegion) switchRegion(activeRegion);
         }
-        async function init() {
-            const res = await Promise.all(['https://raw.githubusercontent.com/afirdiansyah/1_Indonesia/main/1_indonesia.geojson', 'https://raw.githubusercontent.com/afirdiansyah/2_Indonesia/main/2_Indonesia.geojson'].map(u => fetch(u).then(r => r.json()).catch(e => ({features:[]}))))
-            masterGeoJsonData = { type: "FeatureCollection", features: res[0].features.concat(res[1].features) };
-            const provs = [...new Set(masterGeoJsonData.features.map(f => f.properties.Provinsi).filter(p => p))].sort();
-            provs.forEach(p => {
-                const btn = document.createElement('button');
-                btn.className = 'region-btn';
-                btn.innerText = `📍 ${p}`;
-                btn.onclick = () => switchRegion(p);
-                document.getElementById('region-list-box').appendChild(btn);
+        function filterProvinsiList() {
+            const query = document.getElementById('searchProvInput').value.toLowerCase();
+            document.querySelectorAll('.region-list-container .region-btn').forEach(btn => {
+                const text = btn.innerText.toLowerCase();
+                btn.style.display = text.includes(query) ? '' : 'none';
             });
         }
+        function filterBridgeList() {
+            const query = document.getElementById('searchBridgeInput').value.toLowerCase();
+            document.querySelectorAll('.bridge-item').forEach(item => {
+                const name = item.getAttribute('data-name').toLowerCase();
+                const ruas = item.getAttribute('data-ruas').toLowerCase();
+                item.style.display = (name.includes(query) || ruas.includes(query)) ? '' : 'none';
+            });
+        }
+        async function init() {
+            try {
+                const res = await Promise.all([
+                    fetch('https://raw.githubusercontent.com/afirdiansyah/1_Indonesia/main/1_indonesia.geojson').then(r => r.json()).catch(e => ({features:[]})),
+                    fetch('https://raw.githubusercontent.com/afirdiansyah/2_Indonesia/main/2_Indonesia.geojson').then(r => r.json()).catch(e => ({features:[]}))
+                ]);
+                masterGeoJsonData = { type: "FeatureCollection", features: res[0].features.concat(res[1].features) };
+                
+                const provSet = new Set();
+                masterGeoJsonData.features.forEach(f => {
+                    const p = getProp(f.properties, ['Provinsi']);
+                    if (p && p.trim() !== "") provSet.add(p.trim());
+                });
+
+                const listBox = document.getElementById('region-list-box');
+                Array.from(provSet).sort().forEach(p => {
+                    const btn = document.createElement('button');
+                    btn.className = 'region-btn';
+                    btn.id = `tab-${p}`;
+                    btn.innerText = `📍 ${p}`;
+                    btn.onclick = () => switchRegion(p);
+                    listBox.appendChild(btn);
+                });
+            } catch(e) {
+                console.error("Error loading GeoJSON:", e);
+            }
+        }
         init();
-        function toggleRegionList() { document.getElementById('region-dropdown-box').classList.toggle('collapsed'); }
-        function filterBridgeList() {}
-        function filterProvinsiList() {}
+        function toggleRegionList() {
+            const box = document.getElementById('region-dropdown-box');
+            box.classList.toggle('collapsed');
+            document.getElementById('toggle-icon').innerText = box.classList.contains('collapsed') ? '▼ Show' : '▲ Hide';
+        }
         function resetDashboard() { window.location.reload(); }
     </script>
 </body>
 </html>
-
-
