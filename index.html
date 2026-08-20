@@ -4,11 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Kondisi Jembatan 2025</title>
+    
+    <!-- Import Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- 1. IMPORT SUPABASE -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         :root { --bg: #f4f6f8; --header-bg: rgba(0, 94, 149, 0.9); --sidebar-bg: rgba(255, 255, 255, 0.85); --text-header: #ffffff; --text-sidebar: #212529; --accent: #005e95; --accent-2: #e67e22; --border: rgba(206, 212, 218, 0.8); --shadow: rgba(0, 0, 0, 0.1); --tab-inactive: rgba(233, 236, 239, 0.8); --blur: blur(12px); --stat-bg: rgba(0, 94, 149, 0.05); --stat-border: rgba(0, 94, 149, 0.2); --stat-alt-bg: rgba(230, 126, 34, 0.05); --stat-alt-border: rgba(230, 126, 34, 0.2); }
         [data-theme="dark"] { --bg: #050505; --header-bg: rgba(10, 10, 10, 0.9); --sidebar-bg: rgba(17, 17, 17, 0.75); --text-header: #00ffff; --text-sidebar: #e0e0e0; --accent: #00ffff; --accent-2: #ff00ff; --border: rgba(51, 51, 51, 0.6); --shadow: rgba(0, 255, 255, 0.15); --tab-inactive: rgba(34, 34, 34, 0.6); --stat-bg: rgba(0, 255, 255, 0.05); --stat-border: rgba(0, 255, 255, 0.2); --stat-alt-bg: rgba(255, 0, 255, 0.05); --stat-alt-border: rgba(255, 0, 255, 0.2); }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text-sidebar); transition: background 0.3s ease, color 0.3s ease; overflow: hidden; }
+        
+        /* --- STYLE LOGIN (TAMBAHAN) --- */
+        #login-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #050505; color: #00ffff; z-index: 9999; position: absolute; width: 100%; }
+        .login-box { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(0, 255, 255, 0.2); box-shadow: 0 0 20px rgba(0, 255, 255, 0.1); padding: 40px; border-radius: 12px; width: 320px; text-align: center; }
+        .login-box input { width: 90%; padding: 12px; margin: 10px 0; background: rgba(0,0,0,0.4); border: 1px solid #00ffff; color: white; border-radius: 6px; outline: none; }
+        .login-box input:focus { box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        .login-box button { background: #00ffff; color: #050505; padding: 12px; margin-top: 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; text-transform: uppercase; letter-spacing: 1px; }
+        .login-box button:hover { box-shadow: 0 0 15px #00ffff; }
+        /* ------------------------------ */
+
+        /* Wrapper dashboard disembunyikan dulu */
+        #dashboard-wrapper { display: none; height: 100%; width: 100%; flex-direction: column; }
+
         header { height: 55px; background-color: var(--header-bg); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); color: var(--text-header); display: flex; align-items: center; padding: 0 20px; border-bottom: 2px solid var(--accent); justify-content: space-between; box-shadow: 0 2px 20px var(--shadow); z-index: 2000; }
         .header-actions { display: flex; gap: 8px; align-items: center; }
         .action-btn { background: transparent; color: var(--text-header) !important; border: 1px solid var(--accent); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 10px; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
@@ -50,155 +69,157 @@
         .bridge-item-sub { opacity: 0.7; font-size: 9.5px; }
         .chart-container { padding-top: 6px; border-top: 1px solid var(--border); height: 160px; display: flex; flex-direction: column; }
         
-        /* --- POPUP LEAFLET SESUAI PERMINTAAN --- */
-        .leaflet-popup-content-wrapper,
-        .leaflet-popup-tip {
-            background: rgba(20, 20, 20, 0.9) !important;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            color: #fff !important;
-            border: 1px solid var(--accent);
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
-            border-radius: 10px;
-        }
-        .leaflet-popup-content {
-            margin: 12px 14px !important;
-            line-height: 1.4;
-        }
-        .leaflet-container a.leaflet-popup-close-button {
-            color: #aaa !important;
-            padding: 6px 8px !important;
-        }
-        .leaflet-container a.leaflet-popup-close-button:hover {
-            color: var(--accent) !important;
-        }
-
-        .popup-title {
-            font-weight: 800;
-            font-size: 13px;
-            color: var(--accent);
-            display: block;
-            border-bottom: 2px solid var(--accent);
-            margin-bottom: 6px;
-            padding-bottom: 4px;
-            text-transform: uppercase;
-        }
-        .popup-table {
-            width: 100%;
-            font-size: 11px;
-            border-collapse: collapse;
-            color: inherit;
-        }
-        .popup-table td {
-            padding: 3px 0;
-            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
-        }
-        [data-theme="dark"] .popup-table td {
-            color: #ccc;
-            border-bottom-color: rgba(255, 255, 255, 0.05);
-        }
-        .popup-table td:first-child {
-            font-weight: 600;
-            width: 30%;
-        }
-        .popup-table td:last-child {
-            text-align: right;
-        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: rgba(20, 20, 20, 0.9) !important; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff !important; border: 1px solid var(--accent); box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); border-radius: 10px; }
+        .leaflet-popup-content { margin: 12px 14px !important; line-height: 1.4; }
+        .leaflet-container a.leaflet-popup-close-button { color: #aaa !important; padding: 6px 8px !important; }
+        .leaflet-container a.leaflet-popup-close-button:hover { color: var(--accent) !important; }
+        .popup-title { font-weight: 800; font-size: 13px; color: var(--accent); display: block; border-bottom: 2px solid var(--accent); margin-bottom: 6px; padding-bottom: 4px; text-transform: uppercase; }
+        .popup-table { width: 100%; font-size: 11px; border-collapse: collapse; color: inherit; }
+        .popup-table td { padding: 3px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.2); }
+        [data-theme="dark"] .popup-table td { color: #ccc; border-bottom-color: rgba(255, 255, 255, 0.05); }
+        .popup-table td:first-child { font-weight: 600; width: 30%; }
+        .popup-table td:last-child { text-align: right; }
 
         @media (max-width: 768px) { .main-container { flex-direction: column; } .sidebar { width: 100%; height: auto; max-height: 50vh; } #map-container { height: 50vh; } }
     </style>
 </head>
 <body>
-    <header>
-        <span style="font-weight: 800; letter-spacing: 1px; font-size: 1rem;">DASHBOARD KONDISI JEMBATAN 2025</span>
-        <div class="header-actions">
-            <button class="action-btn" onclick="downloadDataCSV()" title="Unduh Data CSV">📥 CSV</button>
-            <button class="action-btn" onclick="resetDashboard()" title="Kembali ke tampilan awal">🔄 Reset</button>
-            <button class="action-btn" onclick="toggleTheme()">Theme</button>
-        </div>
-    </header>
-    <div class="main-container">
-        <div class="sidebar">
-            <div class="stat-grid">
-                <div class="stat-box"> <div class="stat-label">Total Unit</div> <div class="stat-value" id="total-unit">0</div> </div>
-                <div class="stat-box alt"> <div class="stat-label">Total Pjg</div> <div class="stat-value" id="total-length">0 m</div> </div>
-            </div>
-            <div class="legend-container">
-                <h3 style="margin: 0 0 4px 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;">Kemantapan</h3>
-                <div class="legend-grid" id="legend"></div>
-            </div>
-            <div class="bridge-list-container">
-                <h4 style="margin: 0 0 4px 0; font-size: 0.75rem; text-transform: uppercase; opacity: 0.7;">Daftar Jembatan</h4>
-                <input type="text" id="searchBridgeInput" class="search-box" placeholder="🔍 Cari nama jembatan / ruas..." onkeyup="filterBridgeList()">
-                <div id="bridge-list"> <div style="font-size: 10px; opacity: 0.5; text-align: center; padding: 6px;">Pilih wilayah atau reset</div> </div>
-            </div>
-            <div class="chart-container">
-                <h4 style="margin: 0 0 2px 0; font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; text-align: center;">Proporsi Kemantapan</h4>
-                <div style="position: relative; flex-grow: 1; min-height: 0; width: 100%;"> <canvas id="conditionChart"></canvas> </div>
-            </div>
-        </div>
-        <div id="map-container">
-            <div class="map-floating-filter">
-                <button class="region-header-toggle" onclick="toggleRegionList()"> <span>🗂️ Filter Provinsi</span> <span id="toggle-icon">▲ Hide</span> </button>
-                <div class="region-dropdown-content" id="region-dropdown-box">
-                    <input type="text" id="searchProvInput" class="search-box" placeholder="🔍 Cari nama provinsi..." onkeyup="filterProvinsiList()">
-                    <div class="region-list-container" id="region-list-box"> <button onclick="switchRegion('nasional')" id="tab-nasional" class="region-btn"> 🇮🇩 Seluruh Wilayah (Nasional) </button> </div>
-                </div>
-            </div>
-            <div id="map"></div>
+
+    <!-- LAYER 1: LOGIN BOX -->
+    <div id="login-container">
+        <div class="login-box">
+            <h2 style="margin-bottom: 25px;">WEBGIS LOGIN</h2>
+            <input type="text" id="username" placeholder="Nama Akun (contoh: dsi)">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="loginSistem()">MASUK</button>
         </div>
     </div>
+
+    <!-- LAYER 2: DASHBOARD UTAMA (Muncul setelah login) -->
+    <div id="dashboard-wrapper">
+        <header>
+            <span style="font-weight: 800; letter-spacing: 1px; font-size: 1rem;">DASHBOARD KONDISI JEMBATAN 2025</span>
+            <div class="header-actions">
+                <span id="welcome-text" style="font-size: 10px; margin-right:10px; opacity: 0.8;"></span>
+                <button class="action-btn" onclick="downloadDataCSV()" title="Unduh Data CSV">📥 CSV</button>
+                <button class="action-btn" onclick="resetDashboard()" title="Kembali ke tampilan awal">🔄 Reset</button>
+                <button class="action-btn" onclick="toggleTheme()">Theme</button>
+                <button class="action-btn" onclick="logoutSistem()" style="border-color: #ff073a; color: #ff073a !important;">Logout</button>
+            </div>
+        </header>
+        <div class="main-container">
+            <div class="sidebar">
+                <div class="stat-grid">
+                    <div class="stat-box"> <div class="stat-label">Total Unit</div> <div class="stat-value" id="total-unit">0</div> </div>
+                    <div class="stat-box alt"> <div class="stat-label">Total Pjg</div> <div class="stat-value" id="total-length">0 m</div> </div>
+                </div>
+                <div class="legend-container">
+                    <h3 style="margin: 0 0 4px 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;">Kemantapan</h3>
+                    <div class="legend-grid" id="legend"></div>
+                </div>
+                <div class="bridge-list-container">
+                    <h4 style="margin: 0 0 4px 0; font-size: 0.75rem; text-transform: uppercase; opacity: 0.7;">Daftar Jembatan</h4>
+                    <input type="text" id="searchBridgeInput" class="search-box" placeholder="🔍 Cari nama jembatan / ruas..." onkeyup="filterBridgeList()">
+                    <div id="bridge-list"> <div style="font-size: 10px; opacity: 0.5; text-align: center; padding: 6px;">Pilih wilayah atau reset</div> </div>
+                </div>
+                <div class="chart-container">
+                    <h4 style="margin: 0 0 2px 0; font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; text-align: center;">Proporsi Kemantapan</h4>
+                    <div style="position: relative; flex-grow: 1; min-height: 0; width: 100%;"> <canvas id="conditionChart"></canvas> </div>
+                </div>
+            </div>
+            <div id="map-container">
+                <div class="map-floating-filter">
+                    <button class="region-header-toggle" onclick="toggleRegionList()"> <span>🗂️ Filter Provinsi</span> <span id="toggle-icon">▲ Hide</span> </button>
+                    <div class="region-dropdown-content" id="region-dropdown-box">
+                        <input type="text" id="searchProvInput" class="search-box" placeholder="🔍 Cari nama provinsi..." onkeyup="filterProvinsiList()">
+                        <div class="region-list-container" id="region-list-box"> <button onclick="switchRegion('nasional')" id="tab-nasional" class="region-btn"> 🇮🇩 Seluruh Wilayah (Nasional) </button> </div>
+                    </div>
+                </div>
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT LIBRARY -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
+        // ==========================================
+        // 1. PENGATURAN SUPABASE
+        // ==========================================
+        // WAJIB GANTI: Masukin URL dan ANON KEY dari Supabase lu di sini!
+        const supabaseUrl = 'https://URL_PROJECT_LU.supabase.co'; 
+        const supabaseKey = 'ANON_KEY_PROJECT_LU'; 
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function loginSistem() {
+            const uname = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const emailAkun = uname + '@webgis.id'; // Trik email palsu
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: emailAkun,
+                password: pass,
+            });
+
+            if (error) {
+                alert("Login gagal bang! Cek lagi nama akun dan passwordnya.");
+            } else {
+                cekRoleDanTampilkanPeta(data.user.id, uname);
+            }
+        }
+
+        async function cekRoleDanTampilkanPeta(userId, uname) {
+            const { data: profil, error } = await supabase
+                .from('profiles')
+                .select('role, kode_balai')
+                .eq('id', userId)
+                .single();
+            
+            if (profil) {
+                // Sembunyikan form login, tampilkan dashboard
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('dashboard-wrapper').style.display = 'flex';
+                document.getElementById('welcome-text').innerText = `Halo, ${uname.toUpperCase()} (${profil.role})`;
+
+                // Panggil fungsi pembuat peta, dan kasih tau dia rolenya apa!
+                initDashboard(profil.role, profil.kode_balai);
+            }
+        }
+
+        async function logoutSistem() {
+            await supabase.auth.signOut();
+            window.location.reload();
+        }
+
+        // ==========================================
+        // 2. KODE LEAFLET & DASHBOARD LU (YANG SUDAH DIMODIFIKASI)
+        // ==========================================
         let currentTheme = 'dark';
         document.documentElement.setAttribute('data-theme', 'dark');
         let activeRegion = null; let myChart = null; let masterGeoJsonData = null; let currentActiveLayer = null; let lastClickedLayer = null; let currentFilteredFeatures = [];
+        
         const map = L.map('map').setView([-2.5, 118.0], 5);
         const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'CARTO' }).addTo(map);
         const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: 'CARTO' });
+        
         const colorPalette = {
             dark: { 'Sangat Baik': '#39ff14', 'Baik': '#00ffff', 'Sedang': '#fdfd96', 'Rusak': '#ff8c00', 'Rusak Berat': '#ff073a', 'Tidak Diketahui': '#888888' },
             light: { 'Sangat Baik': '#2e7d32', 'Baik': '#00838f', 'Sedang': '#fbc02d', 'Rusak': '#ef6c00', 'Rusak Berat': '#c62828', 'Tidak Diketahui': '#9e9e9e' }
         };
+
         function getProp(props, targetKeys) { if (!props) return null; if (!Array.isArray(targetKeys)) targetKeys = [targetKeys]; for (let target of targetKeys) { const key = Object.keys(props).find(k => k.toLowerCase() === target.toLowerCase()); if (key && props[key] !== null && props[key] !== undefined) return props[key]; } return null; }
         function getBridgeLength(props) { const pjg = getProp(props, ['Pjg_Jbt_25', 'Pjg_Jbt_26', 'Pjg_26']); return parseFloat(pjg) || 0; }
         function getKondisiRaw(props) { const nk = parseInt(getProp(props, ['JBT_25', 'JBT_26'])); if (isNaN(nk)) return 'Tidak Diketahui'; if (nk <= 1) return 'Sangat Baik'; if (nk === 2) return 'Baik'; if (nk === 3) return 'Sedang'; if (nk === 4) return 'Rusak'; return 'Rusak Berat'; }
         function getColor(kondisiRaw, theme) { return colorPalette[theme][kondisiRaw] || colorPalette[theme]['Tidak Diketahui']; }
         
-        function downloadDataCSV() {
-            if (!currentFilteredFeatures.length) {
-                alert("Tidak ada data untuk diunduh.");
-                return;
-            }
-            const allKeysSet = new Set();
-            currentFilteredFeatures.forEach(f => {
-                if (f.properties) {
-                    Object.keys(f.properties).forEach(k => allKeysSet.add(k));
-                }
-            });
-            const keys = Array.from(allKeysSet);
-            let csv = keys.join(",") + "\n";
-            currentFilteredFeatures.forEach(f => {
-                const props = f.properties || {};
-                const row = keys.map(key => {
-                    let val = props[key] !== null && props[key] !== undefined ? props[key] : "";
-                    val = String(val).replace(/"/g, '""');
-                    if (val.includes(',') || val.includes('\n') || val.includes('"')) {
-                        val = `"${val}"`;
-                    }
-                    return val;
-                });
-                csv += row.join(",") + "\n";
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", `atribut_geojson_${activeRegion || 'nasional'}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        function downloadDataCSV() { /* Kode asli lu dipertahankan */
+            if (!currentFilteredFeatures.length) { alert("Tidak ada data untuk diunduh."); return; }
+            const allKeysSet = new Set(); currentFilteredFeatures.forEach(f => { if (f.properties) { Object.keys(f.properties).forEach(k => allKeysSet.add(k)); } });
+            const keys = Array.from(allKeysSet); let csv = keys.join(",") + "\n";
+            currentFilteredFeatures.forEach(f => { const props = f.properties || {}; const row = keys.map(key => { let val = props[key] !== null && props[key] !== undefined ? props[key] : ""; val = String(val).replace(/"/g, '""'); if (val.includes(',') || val.includes('\n') || val.includes('"')) { val = `"${val}"`; } return val; }); csv += row.join(",") + "\n"; });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", `atribut_geojson_${activeRegion || 'nasional'}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function createFeatureLayer(featuresArray) {
@@ -213,12 +234,8 @@
                     const balai = getProp(p, ['Balai', 'WILAYAH', 'Keterangan']) || '-';
                     const color = getColor(kondisi, currentTheme);
 
-                    l.on('click', function (e) {
-                        L.DomEvent.stopPropagation(e);
-                        highlightFeature(l, color);
-                    });
+                    l.on('click', function (e) { L.DomEvent.stopPropagation(e); highlightFeature(l, color); });
 
-                    // Pop-up disesuaikan dengan gaya Cyber/Tech yang rapi & elegan
                     l.bindPopup(`
                         <span class="popup-title">${nmJbt}</span>
                         <table class="popup-table">
@@ -233,30 +250,15 @@
         }
 
         function highlightFeature(layerInstance, color) {
-            if (currentActiveLayer) {
-                currentActiveLayer.eachLayer(layer => {
-                    if (layer.setStyle) {
-                        layer.setStyle({ radius: 5, weight: 1, color: currentTheme === 'dark' ? '#000' : '#fff' });
-                    }
-                });
-            }
+            if (currentActiveLayer) { currentActiveLayer.eachLayer(layer => { if (layer.setStyle) { layer.setStyle({ radius: 5, weight: 1, color: currentTheme === 'dark' ? '#000' : '#fff' }); } }); }
             lastClickedLayer = layerInstance;
-            layerInstance.setStyle({
-                radius: 8,
-                color: currentTheme === 'dark' ? '#00ffff' : '#005e95',
-                weight: 2.5,
-                fillColor: color
-            });
+            layerInstance.setStyle({ radius: 8, color: currentTheme === 'dark' ? '#00ffff' : '#005e95', weight: 2.5, fillColor: color });
             layerInstance.bringToFront();
         }
 
         map.on('click', function () {
             if (currentActiveLayer) {
-                currentActiveLayer.eachLayer(layer => {
-                    if (layer.setStyle) {
-                        layer.setStyle({ radius: 5, weight: 1, color: currentTheme === 'dark' ? '#000' : '#fff' });
-                    }
-                });
+                currentActiveLayer.eachLayer(layer => { if (layer.setStyle) { layer.setStyle({ radius: 5, weight: 1, color: currentTheme === 'dark' ? '#000' : '#fff' }); } });
                 lastClickedLayer = null;
             }
         });
@@ -280,22 +282,22 @@
             document.getElementById('bridge-list').innerHTML = listHTML || '<div style="font-size: 10px; opacity: 0.5; text-align: center; padding: 6px;">Tidak ada data</div>';
             renderChart(mantap, tidakMantap);
         }
+
         function focusBridge(index) {
             if (!currentActiveLayer) return;
             let i = 0;
             currentActiveLayer.eachLayer(layer => {
-                if (i === index) {
-                    map.flyTo(layer.getLatLng(), 15, { duration: 1.5 });
-                    layer.openPopup();
-                }
+                if (i === index) { map.flyTo(layer.getLatLng(), 15, { duration: 1.5 }); layer.openPopup(); }
                 i++;
             });
         }
+
         function renderChart(mantap, tidakMantap) {
             const ctx = document.getElementById('conditionChart').getContext('2d');
             if (myChart) myChart.destroy();
             myChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['Mantap', 'Tidak Mantap'], datasets: [{ data: [mantap, tidakMantap], backgroundColor: [currentTheme === 'dark' ? '#39ff14' : '#2e7d32', currentTheme === 'dark' ? '#ff073a' : '#c62828'] }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right', labels: { color: currentTheme === 'dark' ? '#e0e0e0' : '#212529', font: { size: 10 }, boxWidth: 10 } } } } });
         }
+
         function switchRegion(regionName) {
             activeRegion = regionName;
             document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
@@ -303,7 +305,7 @@
             if (activeBtn) activeBtn.classList.add('active');
 
             if (regionName === 'nasional') {
-                currentFilteredFeatures = masterGeoJsonData.features.filter(f => getProp(f.properties, ['Provinsi']));
+                currentFilteredFeatures = masterGeoJsonData.features;
             } else {
                 currentFilteredFeatures = masterGeoJsonData.features.filter(f => {
                     const prov = getProp(f.properties, ['Provinsi']);
@@ -317,6 +319,7 @@
             }
             updateUI(currentFilteredFeatures);
         }
+
         function toggleTheme() {
             currentTheme = currentTheme === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', currentTheme);
@@ -324,29 +327,39 @@
             (currentTheme === 'dark' ? darkTiles : lightTiles).addTo(map);
             if (activeRegion) switchRegion(activeRegion);
         }
-        function filterProvinsiList() {
-            const query = document.getElementById('searchProvInput').value.toLowerCase();
-            document.querySelectorAll('.region-list-container .region-btn').forEach(btn => {
-                const text = btn.innerText.toLowerCase();
-                btn.style.display = text.includes(query) ? '' : 'none';
-            });
-        }
-        function filterBridgeList() {
-            const query = document.getElementById('searchBridgeInput').value.toLowerCase();
-            document.querySelectorAll('.bridge-item').forEach(item => {
-                const name = item.getAttribute('data-name').toLowerCase();
-                const ruas = item.getAttribute('data-ruas').toLowerCase();
-                item.style.display = (name.includes(query) || ruas.includes(query)) ? '' : 'none';
-            });
-        }
-        async function init() {
+        function filterProvinsiList() { const query = document.getElementById('searchProvInput').value.toLowerCase(); document.querySelectorAll('.region-list-container .region-btn').forEach(btn => { const text = btn.innerText.toLowerCase(); btn.style.display = text.includes(query) ? '' : 'none'; }); }
+        function filterBridgeList() { const query = document.getElementById('searchBridgeInput').value.toLowerCase(); document.querySelectorAll('.bridge-item').forEach(item => { const name = item.getAttribute('data-name').toLowerCase(); const ruas = item.getAttribute('data-ruas').toLowerCase(); item.style.display = (name.includes(query) || ruas.includes(query)) ? '' : 'none'; }); }
+        function toggleRegionList() { const box = document.getElementById('region-dropdown-box'); box.classList.toggle('collapsed'); document.getElementById('toggle-icon').innerText = box.classList.contains('collapsed') ? '▼ Show' : '▲ Hide'; }
+        function resetDashboard() { window.location.reload(); }
+
+        // ==========================================
+        // 3. FUNGSI INISIASI DATA (JALAN SETELAH LOGIN)
+        // ==========================================
+        async function initDashboard(role, kodeBalai) {
             try {
+                // SEMENTARA MENGGUNAKAN DATA GITHUB LU DULU (Biar UI langsung nyala)
                 const res = await Promise.all([
                     fetch('https://raw.githubusercontent.com/afirdiansyah/1_Indonesia/main/1_indonesia.geojson').then(r => r.json()).catch(e => ({features:[]})),
                     fetch('https://raw.githubusercontent.com/afirdiansyah/2_Indonesia/main/2_Indonesia.geojson').then(r => r.json()).catch(e => ({features:[]}))
                 ]);
+                
                 masterGeoJsonData = { type: "FeatureCollection", features: res[0].features.concat(res[1].features) };
                 
+                // FILTER AJAIB BERDASARKAN ROLE
+                // Kalau yang login orang balai, potong datanya cuma buat balai dia doang!
+                if (role === 'balai') {
+                    masterGeoJsonData.features = masterGeoJsonData.features.filter(f => {
+                        // Cari atribut balai di GeoJSON lu (sesuaikan dengan nama kolom lu)
+                        const balaiFeature = getProp(f.properties, ['Balai', 'WILAYAH', 'Keterangan']);
+                        // Pastiin datanya ada dan sesuai dengan kode_balai di database
+                        return balaiFeature && balaiFeature.toUpperCase().includes(kodeBalai.toUpperCase());
+                    });
+                    
+                    // Sembunyiin tombol wilayah "Nasional" biar balai gak bisa iseng klik
+                    document.getElementById('tab-nasional').style.display = 'none';
+                }
+
+                // Lanjut bikin list filter Provinsi kayak biasa
                 const provSet = new Set();
                 masterGeoJsonData.features.forEach(f => {
                     const p = getProp(f.properties, ['Provinsi']);
@@ -362,17 +375,21 @@
                     btn.onclick = () => switchRegion(p);
                     listBox.appendChild(btn);
                 });
+                
+                // Tampilkan data ke peta untuk pertama kali
+                // Kalau Pusat, set default Nasional. Kalau Balai, panggil provinsi pertama di list
+                if (role === 'pusat') {
+                    switchRegion('nasional');
+                } else if (provSet.size > 0) {
+                    switchRegion(Array.from(provSet)[0]); 
+                } else {
+                    alert("Data wilayah untuk balai ini tidak ditemukan!");
+                }
+
             } catch(e) {
-                console.error("Error loading GeoJSON:", e);
+                console.error("Error loading data:", e);
             }
         }
-        init();
-        function toggleRegionList() {
-            const box = document.getElementById('region-dropdown-box');
-            box.classList.toggle('collapsed');
-            document.getElementById('toggle-icon').innerText = box.classList.contains('collapsed') ? '▼ Show' : '▲ Hide';
-        }
-        function resetDashboard() { window.location.reload(); }
     </script>
 </body>
 </html>
